@@ -1,1 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elemental Quest: Character Creator</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-color: #16213e;
+            --accent-color: #e94560;
+            --text-color: #ffffff;
+            --ui-font: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--ui-font);
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        }
+
+        /* --- SCENE STYLING --- */
+        .scene {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .active { display: flex; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* --- CHARACTER CREATOR SCENE --- */
+        #creator-scene {
+            padding: 20px;
+            background: linear-gradient(180deg, #1a1a2e 0%, #0f3460 100%);
+        }
+
+        .preview-window {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        canvas {
+            image-rendering: pixelated;
+            display: block;
+        }
+
+        .controls-panel {
+            background: rgba(22, 33, 62, 0.9);
+            border-radius: 20px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .selector-row {
+            margin-bottom: 15px;
+        }
+
+        .selector-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            color: #aaa;
+        }
+
+        .carousel {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: var(--accent-color);
+            border: none;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-weight: bold;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .current-val {
+            flex: 1;
+            text-align: center;
+            font-weight: bold;
+            font-size: 18px;
+            background: rgba(0,0,0,0.3);
+            padding: 8px;
+            border-radius: 10px;
+            text-transform: capitalize;
+        }
+
+        #start-btn {
+            background: #27ae60;
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+            box-shadow: 0 4px 0 #1e8449;
+        }
+
+        #start-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #1e8449;
+        }
+
+        /* --- ADVENTURE SCENE --- */
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+
+        .score-box {
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        #action-btn {
+            position: absolute;
+            bottom: 40px;
+            right: 30px;
+            width: 90px;
+            height: 90px;
+            background: rgba(233, 69, 96, 0.7);
+            border: 4px solid white;
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #action-btn:active {
+            transform: scale(0.9);
+            background: rgba(233, 69, 96, 1);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="creator-scene" class="scene active">
+        <div class="preview-window">
+            <canvas id="creatorCanvas"></canvas>
+        </div>
+
+        <div class="controls-panel">
+            <div class="selector-row">
+                <div class="selector-label">Class</div>
+                <div class="carousel">
+                    <button class="nav-btn" onclick="game.updateSelection('class', -1)">&#10094;</button>
+                    <div id="class-val" class="current-val">Warrior</div>
+                    <button class="nav-btn" onclick="game.updateSelection('class', 1)">&#10095;</button>
+                </div>
+            </div>
+
+            <div class="selector-row">
+                <div class="selector-label">Element</div>
+                <div class="carousel">
+                    <button class="nav-btn" onclick="game.updateSelection('element', -1)">&#10094;</button>
+                    <div id="element-val" class="current-val">Fire</div>
+                    <button class="nav-btn" onclick="game.updateSelection('element', 1)">&#10095;</button>
+                </div>
+            </div>
+
+            <div class="selector-row">
+                <div class="selector-label">Color</div>
+                <div class="carousel">
+                    <button class="nav-btn" onclick="game.updateSelection('color', -1)">&#10094;</button>
+                    <div id="color-val" class="current-val">Default</div>
+                    <button class="nav-btn" onclick="game.updateSelection('color', 1)">&#10095;</button>
+                </div>
+            </div>
+
+            <button id="start-btn" onclick="game.startAdventure()">START ADVENTURE</button>
+        </div>
+    </div>
+
+    <div id="adventure-scene" class="scene">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud">
+            <div class="score-box">KO: <span id="score">0</span></div>
+        </div>
+        <div id="action-btn">ATTACK</div>
+    </div>
+</div>
+
+<script>
+/**
+ * SETTINGS & CONSTANTS
+ */
+const CLASSES = ['warrior', 'paladin', 'mage', 'rogue', 'wizard', 'sorcerer'];
+const ELEMENTS = {
+    fire: '#ff4d00',
+    ice: '#00d4ff',
+    lightning: '#ffff00',
+    earth: '#8b4513',
+    dark: '#4b0082',
+    light: '#ffffff'
+};
+const COLORS = [
+    { name: 'Default', filter: 'none' },
+    { name: 'Crimson', filter: 'hue-rotate(320deg) saturate(2)' },
+    { name: 'Forest', filter: 'hue-rotate(100deg) saturate(1.5)' },
+    { name: 'Ocean', filter: 'hue-rotate(200deg)' },
+    { name: 'Golden', filter: 'sepia(1) saturate(5) hue-rotate(10deg)' }
+];
+
+/**
+ * UTILITY: SIMPLE WEB AUDIO
+ */
+const Sound = {
+    ctx: null,
+    init() {
+        this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    },
+    play(freq, type, duration) {
+        if(!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+        gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start();
+        osc.stop(this.ctx.currentTime + duration);
+    }
+};
+
+/**
+ * SPRITE ENTITY CLASS
+ */
+class Entity {
+    constructor(x, y, size, color) {
+        this.x = x;
+        this.y = y;
+        this.size = size;
+        this.color = color;
+        this.frame = 0;
+        this.animTimer = 0;
+        this.state = 'idle'; // idle, walk, attack
+        this.vx = 0;
+        this.vy = 0;
+    }
+
+    draw(ctx, config) {
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        
+        // Apply Character Color Filter
+        if(config && config.filter) ctx.filter = config.filter;
+
+        // Simple Procedural Character Design
+        // Body
+        ctx.fillStyle = this.color;
+        let bob = this.state === 'walk' ? Math.sin(Date.now() * 0.01) * 5 : 0;
+        
+        // Attack Animation logic
+        let attackExt = 0;
+        if(this.state === 'attack') {
+            attackExt = Math.sin(this.animTimer * 0.2) * 20;
+        }
+
+        // Draw Body
+        ctx.fillRect(-this.size/2, -this.size + bob, this.size, this.size);
+        
+        // Eyes/Face based on class
+        ctx.fillStyle = '#000';
+        ctx.fillRect(2, -this.size + 10 + bob, 4, 4);
+        ctx.fillRect(12, -this.size + 10 + bob, 4, 4);
+
+        // Weapon (Procedural)
+        ctx.filter = 'none';
+        ctx.fillStyle = (config && config.elementColor) ? config.elementColor : '#ccc';
+        
+        if(this.state === 'attack') {
+            ctx.fillRect(this.size/2, -this.size/2 + bob - attackExt, 25, 8);
+        } else {
+            ctx.fillRect(this.size/2 - 5, -this.size/2 + bob, 8, 20);
+        }
+
+        ctx.restore();
+    }
+
+    update(dt) {
+        this.animTimer += dt;
+        if(this.state === 'attack' && this.animTimer > 15) {
+            this.state = 'walk';
+            this.animTimer = 0;
+        }
+    }
+}
+
+/**
+ * ENEMY CLASS
+ */
+class Enemy extends Entity {
+    constructor(x, y) {
+        super(x, y, 40, '#555');
+        this.active = true;
+    }
+
+    draw(ctx) {
+        if(!this.active) return;
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.fillStyle = '#ff3333';
+        ctx.beginPath();
+        ctx.moveTo(0, -this.size);
+        ctx.lineTo(this.size/2, 0);
+        ctx.lineTo(-this.size/2, 0);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    update(speed) {
+        this.x -= speed;
+        if(this.x < -50) this.active = false;
+    }
+}
+
+/**
+ * MAIN GAME ENGINE
+ */
+const game = {
+    // State
+    classIdx: 0,
+    elementIdx: 0,
+    colorIdx: 0,
+    score: 0,
+    enemies: [],
+    particles: [],
+    
+    // Canvas contexts
+    creatorCtx: null,
+    gameCtx: null,
+    lastTime: 0,
+    bgOffset: 0,
+
+    init() {
+        const c1 = document.getElementById('creatorCanvas');
+        const c2 = document.getElementById('gameCanvas');
+        this.creatorCtx = c1.getContext('2d');
+        this.gameCtx = c2.getContext('2d');
+
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        // Adventure Touch Control
+        document.getElementById('action-btn').addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            this.playerAttack();
+        });
+
+        this.player = new Entity(80, 0, 50, '#fff');
+        this.loop();
+    },
+
+    resize() {
+        const container = document.getElementById('game-container');
+        const w = container.clientWidth;
+        const h = container.clientHeight;
+        
+        document.getElementById('creatorCanvas').width = w;
+        document.getElementById('creatorCanvas').height = h * 0.5;
+        
+        document.getElementById('gameCanvas').width = w;
+        document.getElementById('gameCanvas').height = h;
+        
+        if(this.player) this.player.y = h * 0.7;
+    },
+
+    updateSelection(type, dir) {
+        if(type === 'class') {
+            this.classIdx = (this.classIdx + dir + CLASSES.length) % CLASSES.length;
+            document.getElementById('class-val').innerText = CLASSES[this.classIdx];
+        } else if(type === 'element') {
+            this.elementIdx = (this.elementIdx + dir + Object.keys(ELEMENTS).length) % Object.keys(ELEMENTS).length;
+            document.getElementById('element-val').innerText = Object.keys(ELEMENTS)[this.elementIdx];
+        } else if(type === 'color') {
+            this.colorIdx = (this.colorIdx + dir + COLORS.length) % COLORS.length;
+            document.getElementById('color-val').innerText = COLORS[this.colorIdx].name;
+        }
+        Sound.init(); // Initialize audio context on first user interaction
+        Sound.play(200 + (this.classIdx * 50), 'sine', 0.1);
+    },
+
+    startAdventure() {
+        document.getElementById('creator-scene').classList.remove('active');
+        document.getElementById('adventure-scene').classList.add('active');
+        this.player.state = 'walk';
+        this.resize();
+    },
+
+    playerAttack() {
+        if(this.player.state !== 'attack') {
+            this.player.state = 'attack';
+            this.player.animTimer = 0;
+            
+            const elementKey = Object.keys(ELEMENTS)[this.elementIdx];
+            const eColor = ELEMENTS[elementKey];
+            
+            Sound.play(150, 'square', 0.2);
+
+            // Hit Detection
+            this.enemies.forEach(en => {
+                let dist = Math.abs((this.player.x + 40) - en.x);
+                if(dist < 80 && en.active) {
+                    en.active = false;
+                    this.score++;
+                    document.getElementById('score').innerText = this.score;
+                    this.createExplosion(en.x, en.y - 20, eColor);
+                    Sound.play(100, 'sawtooth', 0.1);
+                }
+            });
+        }
+    },
+
+    createExplosion(x, y, color) {
+        for(let i=0; i<10; i++) {
+            this.particles.push({
+                x, y, 
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                life: 1.0,
+                color: color
+            });
+        }
+    },
+
+    loop(now) {
+        const dt = (now - this.lastTime) / 16.67 || 1;
+        this.lastTime = now;
+
+        if(document.getElementById('creator-scene').classList.contains('active')) {
+            this.renderCreator();
+        } else {
+            this.updateAdventure(dt);
+            this.renderAdventure();
+        }
+
+        requestAnimationFrame((t) => this.loop(t));
+    },
+
+    renderCreator() {
+        const ctx = this.creatorCtx;
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        
+        // Floor shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+        ctx.beginPath();
+        ctx.ellipse(w/2, h*0.8, 60, 20, 0, 0, Math.PI*2);
+        ctx.fill();
+
+        this.player.x = w/2 - 25;
+        this.player.y = h*0.8;
+        this.player.update(1);
+        
+        const config = {
+            filter: COLORS[this.colorIdx].filter,
+            elementColor: ELEMENTS[Object.keys(ELEMENTS)[this.elementIdx]]
+        };
+        this.player.draw(ctx, config);
+    },
+
+    updateAdventure(dt) {
+        this.bgOffset -= 2 * dt;
+        this.player.update(dt);
+
+        // Spawn Enemies
+        if(Math.random() < 0.02) {
+            this.enemies.push(new Enemy(this.gameCtx.canvas.width + 50, this.player.y));
+        }
+
+        this.enemies.forEach(en => en.update(5 * dt));
+        this.enemies = this.enemies.filter(en => en.active);
+
+        // Particles
+        this.particles.forEach(p => {
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.05;
+        });
+        this.particles = this.particles.filter(p => p.life > 0);
+    },
+
+    renderAdventure() {
+        const ctx = this.gameCtx;
+        const w = ctx.canvas.width;
+        const h = ctx.canvas.height;
+
+        // Parallax BG
+        ctx.fillStyle = '#0f3460';
+        ctx.fillRect(0,0,w,h);
+        
+        ctx.fillStyle = '#16213e';
+        for(let i=0; i<5; i++) {
+            let x = (this.bgOffset * 0.5 + (i * 200)) % (w + 200);
+            ctx.fillRect(x - 100, h*0.4, 150, h);
+        }
+
+        // Floor
+        ctx.fillStyle = '#1a1a2e';
+        ctx.fillRect(0, h * 0.7, w, h * 0.3);
+
+        // Player
+        const config = {
+            filter: COLORS[this.colorIdx].filter,
+            elementColor: ELEMENTS[Object.keys(ELEMENTS)[this.elementIdx]]
+        };
+        this.player.draw(ctx, config);
+
+        // Enemies
+        this.enemies.forEach(en => en.draw(ctx));
+
+        // Particles
+        this.particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, 8, 8);
+        });
+        ctx.globalAlpha = 1.0;
+    }
+};
+
+// Initialize on Load
+window.onload = () => game.init();
+</script>
+</body>
+</html>
 
